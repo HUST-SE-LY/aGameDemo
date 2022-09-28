@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <card v-for="(cardId,index) in cardList" :img-id="cardId" :in-bottom="true"></card>
+    <card v-for="(card,index) in cardList" :img-id="card[0]" :card-id="card[1]" :in-bottom="true"></card>
   </div>
 </template>
 

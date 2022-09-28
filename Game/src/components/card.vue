@@ -2,7 +2,7 @@
   export default {
     data() {
       return {
-        imgList:['src/assets/img1.jpg','src/assets/img2.jpg','src/assets/img3.jpg','src/assets/img4.jpg'],
+        imgList:['src/assets/img1.jpg','src/assets/img2.jpg','src/assets/img3.jpg','src/assets/img4.jpg','src/assets/img5.png','src/assets/img6.png','src/assets/img7.png','src/assets/img8.png','src/assets/img9.png','src/assets/img10.png'],
         isHide:this.isHide,
         cardId:this.cardId,
         isInBottom:this.inBottom,
