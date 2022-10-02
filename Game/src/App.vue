@@ -21,11 +21,13 @@ export default {
       isSuccess: false,
       isSetting:true,
       threeCardList:[],
+      canGetThree:true,
+      canFresh:true,
     }
   },
 
   methods: {
-    judgeHide() {
+    judgeHide() {//判断卡牌之间的堆叠关系
       this.list = [];
       this.cardList.forEach((value) => {
         value.isHide = false;
@@ -46,11 +48,31 @@ export default {
       if (this.cardList.get(id).isHide) {
         return;
       }
-      this.listAdd([this.cardList.get(id).imgId,id]);
-      this.cardList.delete(id);
-      this.judgeHide();
-      this.judgeClear();
-      this.judgeResult();
+      let position=this.move(id);//返回的是要插入的在哪个位置
+      setTimeout(()=>{
+        this.listAdd([this.cardList.get(id).imgId,id,position]);
+        this.cardList.delete(id);
+        this.judgeHide();
+        this.judgeClear();
+        this.judgeResult();
+      },300)
+
+
+    },
+    move(id) {
+      for(let i = 0;i<this.bottomList.length;i++) {
+        if(this.bottomList[i][0]===this.cardList.get(id).imgId) {
+          this.cardList.get(id).x=200+i*54;
+          this.cardList.get(id).y=500;//卡片运动到对应位置
+          for(let j = i;j<this.bottomList.length;j++) {
+            this.bottomList[j][2]=this.bottomList[j][2]+1;
+          }//空出位置给移动的卡片
+          return i;
+        }
+      }
+      this.cardList.get(id).x=200+this.bottomList.length*54;
+      this.cardList.get(id).y=500;
+      return this.bottomList.length;
     },
     judgeResult() {
       if (this.cardList.size === 0&&this.threeCardList.length===0) {
@@ -61,7 +83,6 @@ export default {
       }
     },
     listAdd(card) {
-      console.log(card)
       for (let i = 0; i < this.bottomList.length; i++) {
         if (this.bottomList[i][0] === card[0]) {
           this.bottomList.splice(i, 0, card);
@@ -72,8 +93,6 @@ export default {
     },
     judgeClear() {
       let numList = new Array(parseInt(this.cardTypeNum)).fill(0);
-      console.log(numList)
-
       for (let i in this.bottomList) {
         numList[this.bottomList[i][0]]++;
         if (numList[this.bottomList[i][0]] === 3) {//如果某一个图片数量达到3，就消除
@@ -82,6 +101,18 @@ export default {
       }
     },
     bottomDelete(card) {
+      let x;
+      for(let i = 0 ; i < this.bottomList.length;i++) {
+        if(this.bottomList[i][0]===card[0]) {
+          x=this.bottomList[i][2]+3;
+          break;
+        }
+      }
+      for(let i = 0;i<this.bottomList.length;i++) {
+        if(this.bottomList[i][2]>=x) {
+          this.bottomList[i][2]=this.bottomList[i][2]-3;
+        }
+      }
       this.bottomList = this.bottomList.filter((value) => {
         return value[0] !== card[0];
       })
@@ -97,6 +128,8 @@ export default {
       this.isFailing = true;
     },
     freshGame() {
+      this.canFresh=true;
+      this.canGetThree=true;
       this.isSuccess=false;
       this.isFailing=false;
       this.isSetting=false;
@@ -120,6 +153,7 @@ export default {
       this.judgeHide()
     },
     freshCard() {
+      this.canFresh=false;
       this.cardList.forEach((card)=>{
         card.x=this.setOffsetX();
         card.y=this.setOffsetY();
@@ -128,22 +162,53 @@ export default {
 
     },
     removeThree() {
-      for(let i = 0;i<3;i++) {
-        if(this.bottomList[0]) {
-          this.threeCardList.push(this.bottomList.shift());
+      this.canGetThree=false;
+
+      for(let j = 0;j<this.bottomList.length;j++) {
+        if(this.bottomList[j][2]===0||this.bottomList[j][2]===1||this.bottomList[j][2]===2) {//把位置最靠前的牌移走
+            this.threeCardList.push(this.bottomList[j]);
         }
       }
+
+      this.bottomList=this.bottomList.filter((card)=>{
+        return card[2]>2;
+      })//从底部列表中删除对应元素
+      for(let i in this.bottomList) {
+        this.bottomList[i][2]-=3;
+      }//底部列表整体向前移动
+
+
     },
     removeFromThree(card) {
-      this.threeCardList=this.threeCardList.filter((value)=>{
-        return value[1]!==card[1]
-      })
+      let x=null;
+      for(let i = 0;i<this.bottomList.length;i++) {
+        console.log(this.bottomList[i][0]+'   '+card[0])
+        if(this.bottomList[i][0]===card[0]) {
+          x=i;
+          break;
+        }
+      }
+      if(x===null) {
+        card[2]=-(11-this.bottomList.length);
+      } else {
+        card[2]=-(11-x)
+        for(let j = x;j < this.bottomList.length;j++) {
+          this.bottomList[j][2]+=1;//空出一个位置
+        }
+      }
+
+      setTimeout(()=>{
+        this.threeCardList=this.threeCardList.filter((value)=>{
+          return value[1]!==card[1]
+        })
+        card[2]=x===null?this.bottomList.length:x;
+        this.listAdd(card);
+        this.judgeHide();
+        this.judgeClear();
+        this.judgeResult();
+      },300)
 
 
-      this.listAdd(card);
-      this.judgeHide();
-      this.judgeClear();
-      this.judgeResult();
 
     },
     setOffsetX() {//设置偏移量
@@ -170,13 +235,13 @@ export default {
 <template>
   <template v-if="isGaming">
     <div class="card_container">
-      <card v-for="card in list" :x="card.x" :y="card.y" :is-hide="card.isHide" :img-id="card.imgId" @removeFromContainer="remove(card.id)"></card>
+      <card v-for="card in list" :key="card.id" :x="card.x" :y="card.y" :is-hide="card.isHide" :img-id="card.imgId" @removeFromContainer="remove(card.id)"></card>
     </div>
     <three-card-box :card-list="threeCardList" @removeFromThreeContainer="removeFromThree($event)"></three-card-box>
     <card-bottom-box :card-list="bottomList" class="bottom_container" ></card-bottom-box>
     <div style="position: absolute;left: 800px">
-      <button @click="removeThree">取三张</button>
-      <button @click="freshCard">洗牌</button>
+      <button @click="removeThree" :disabled="!canGetThree">取三张</button>
+      <button @click="freshCard" :disabled="!canFresh">洗牌</button>
       <button @click="freshGame">重新开始</button>
     </div>
 
