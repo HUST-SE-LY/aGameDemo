@@ -23,6 +23,8 @@ export default {
       threeCardList:[],
       canGetThree:true,
       canFresh:true,
+      isMoving:false,
+      isMovingFromThree:false,
     }
   },
 
@@ -48,14 +50,22 @@ export default {
       if (this.cardList.get(id).isHide) {
         return;
       }
-      let position=this.move(id);//返回的是要插入的在哪个位置
-      setTimeout(()=>{
-        this.listAdd([this.cardList.get(id).imgId,id,position]);
-        this.cardList.delete(id);
-        this.judgeHide();
-        this.judgeClear();
-        this.judgeResult();
-      },300)
+      if(this.isMoving) {//节流
+        return this.isMoving=true;
+      } else {
+        this.isMoving=true;
+        let position=this.move(id);//返回的是要插入的在哪个位置
+        setTimeout(()=>{
+          this.isMoving=false;
+          this.listAdd([this.cardList.get(id).imgId,id,position]);
+          this.cardList.delete(id);
+          this.judgeHide();
+          this.judgeClear();
+          this.judgeResult();
+
+        },300)
+      }
+
 
 
     },
@@ -163,7 +173,6 @@ export default {
     },
     removeThree() {
       this.canGetThree=false;
-
       for(let j = 0;j<this.bottomList.length;j++) {
         if(this.bottomList[j][2]===0||this.bottomList[j][2]===1||this.bottomList[j][2]===2) {//把位置最靠前的牌移走
             this.threeCardList.push(this.bottomList[j]);
@@ -180,33 +189,40 @@ export default {
 
     },
     removeFromThree(card) {
-      let x=null;
-      for(let i = 0;i<this.bottomList.length;i++) {
-        console.log(this.bottomList[i][0]+'   '+card[0])
-        if(this.bottomList[i][0]===card[0]) {
-          x=i;
-          break;
-        }
-      }
-      if(x===null) {
-        card[2]=-(11-this.bottomList.length);
+      if(this.isMovingFromThree) {
+        return this.isMovingFromThree=true;
       } else {
-        card[2]=-(11-x)
-        for(let j = x;j < this.bottomList.length;j++) {
-          this.bottomList[j][2]+=1;//空出一个位置
+        this.isMovingFromThree=true;
+        let x=null;
+        for(let i = 0;i<this.bottomList.length;i++) {
+          console.log(this.bottomList[i][0]+'   '+card[0])
+          if(this.bottomList[i][0]===card[0]) {
+            x=i;
+            break;
+          }
         }
+        if(x===null) {
+          card[2]=-(11-this.bottomList.length);
+        } else {
+          card[2]=-(11-x)
+          for(let j = x;j < this.bottomList.length;j++) {
+            this.bottomList[j][2]+=1;//空出一个位置
+          }
+        }
+
+        setTimeout(()=>{
+          this.threeCardList=this.threeCardList.filter((value)=>{
+            return value[1]!==card[1]
+          })
+          card[2]=x===null?this.bottomList.length:x;
+          this.listAdd(card);
+          this.judgeHide();
+          this.judgeClear();
+          this.judgeResult();
+          this.isMovingFromThree=false;
+        },300)
       }
 
-      setTimeout(()=>{
-        this.threeCardList=this.threeCardList.filter((value)=>{
-          return value[1]!==card[1]
-        })
-        card[2]=x===null?this.bottomList.length:x;
-        this.listAdd(card);
-        this.judgeHide();
-        this.judgeClear();
-        this.judgeResult();
-      },300)
 
 
 
@@ -233,38 +249,45 @@ export default {
 </script>
 
 <template>
-  <template v-if="isGaming">
-    <div class="card_container">
-      <card v-for="card in list" :key="card.id" :x="card.x" :y="card.y" :is-hide="card.isHide" :img-id="card.imgId" @removeFromContainer="remove(card.id)"></card>
-    </div>
-    <three-card-box :card-list="threeCardList" @removeFromThreeContainer="removeFromThree($event)"></three-card-box>
-    <card-bottom-box :card-list="bottomList" class="bottom_container" ></card-bottom-box>
-    <div style="position: absolute;left: 800px">
-      <button @click="removeThree" :disabled="!canGetThree">取三张</button>
-      <button @click="freshCard" :disabled="!canFresh">洗牌</button>
-      <button @click="freshGame">重新开始</button>
-    </div>
+  <div class="main_box">
+    <template v-if="isGaming">
+      <div class="card_container">
+        <card v-for="card in list" :key="card.id" :x="card.x" :y="card.y" :is-hide="card.isHide" :img-id="card.imgId" @removeFromContainer="remove(card.id)"></card>
+      </div>
+      <three-card-box :card-list="threeCardList" @removeFromThreeContainer="removeFromThree($event)"></three-card-box>
+      <card-bottom-box :card-list="bottomList" class="bottom_container" ></card-bottom-box>
+      <div style="position: absolute;left: 800px">
+        <button @click="removeThree" :disabled="!canGetThree">取三张</button>
+        <button @click="freshCard" :disabled="!canFresh">洗牌</button>
+        <button @click="freshGame">重新开始</button>
+      </div>
 
-  </template>
-  <template v-if="isSuccess">
-    <h3>你赢了！</h3>
-    <button @click="freshGame">再来一局</button>
-    <button @click="changeDefault">修改配置</button>
-  </template>
-  <template v-if="isFailing">
-    <h3>你输了！</h3>
-    <button @click="freshGame">再来一局</button>
-    <button @click="changeDefault">更改配置</button>
-  </template>
-  <template v-if="isSetting">
-    卡片种类：<input type="range" min="4" max="10" step="1" v-model="cardTypeNum">{{cardTypeNum}}<br>
-    卡片数量：<input type="range" min="1" max="5" v-model="singleCardNum">{{singleCardNum}} * {{cardTypeNum}} * 3<br>
-    <button @click="freshGame">开始游戏！</button>
-  </template>
+    </template>
+    <template v-if="isSuccess">
+      <h3>你赢了！</h3>
+      <button @click="freshGame">再来一局</button>
+      <button @click="changeDefault">修改配置</button>
+    </template>
+    <template v-if="isFailing">
+      <h3>你输了！</h3>
+      <button @click="freshGame">再来一局</button>
+      <button @click="changeDefault">更改配置</button>
+    </template>
+    <template v-if="isSetting">
+      卡片种类：<input type="range" min="4" max="10" step="1" v-model="cardTypeNum">{{cardTypeNum}}<br>
+      卡片数量：<input type="range" min="1" max="5" v-model="singleCardNum">{{singleCardNum}} * {{cardTypeNum}} * 3<br>
+      <button @click="freshGame">开始游戏！</button>
+    </template>
+  </div>
+
 </template>
 
 <style scoped>
   .bottom_container {
     top: 500px;
+  }
+  .main_box {
+    position: relative;
+    left: 200px;
   }
 </style>
